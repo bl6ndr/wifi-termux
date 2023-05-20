@@ -1,8 +1,8 @@
 import subprocess
 import re
 from pywifi import PyWiFi, const
+from concurrent.futures import ThreadPoolExecutor
 
-# Method 1: Using termux-wifi-connectioninfo
 def get_wifi_password_method1(ssid):
     try:
         output = subprocess.check_output(["termux-wifi-connectioninfo"])
@@ -15,9 +15,8 @@ def get_wifi_password_method1(ssid):
             return None
 
     except subprocess.CalledProcessError:
-        print("Unable to retrieve WiFi password.")
+        return None
 
-# Method 2: Using wpa_cli command-line tool
 def get_wifi_password_method2(ssid):
     try:
         output = subprocess.check_output(["wpa_cli", "-i", "wlan0", "list_networks"])
@@ -34,9 +33,8 @@ def get_wifi_password_method2(ssid):
         return passwords
 
     except subprocess.CalledProcessError:
-        print("Unable to retrieve WiFi passwords.")
+        return None
 
-# Method 3: Using the pywifi library
 def get_wifi_password_method3(ssid):
     try:
         wifi = PyWiFi()
@@ -66,11 +64,8 @@ def get_wifi_password_method3(ssid):
         return passwords
 
     except ImportError:
-        print("pywifi library is not installed.")
-    except Exception as e:
-        print("Unable to retrieve WiFi passwords:", str(e))
+        return None
 
-# Method 4: Parsing saved WiFi configurations
 def get_wifi_password_method4(ssid):
     try:
         output = subprocess.check_output(["cat", "/data/misc/wifi/wpa_supplicant.conf"])
@@ -82,9 +77,8 @@ def get_wifi_password_method4(ssid):
         return passwords
 
     except subprocess.CalledProcessError:
-        print("Unable to retrieve WiFi passwords.")
+        return None
 
-# Method 5: Using the termux-wifi-scaninfo and termux-wifi-getpass tools
 def get_wifi_password_method5(ssid):
     try:
         output = subprocess.check_output(["termux-wifi-scaninfo"])
@@ -96,9 +90,8 @@ def get_wifi_password_method5(ssid):
         return passwords
 
     except subprocess.CalledProcessError:
-        print("Unable to retrieve WiFi passwords.")
+        return None
 
-# Method 6: Using WPA/WPS
 def get_wifi_password_method6(ssid):
     try:
         output = subprocess.check_output(["wpa_cli", "-i", "wlan0", "wps_reg", ssid])
@@ -109,26 +102,39 @@ def get_wifi_password_method6(ssid):
         else:
             return None
     except subprocess.CalledProcessError:
-        print("Unable to retrieve WPA/WPS password.")
+        return None
 
 # Prompt user for SSID
 ssid = input("Enter the SSID of the network: ")
 
-# Calling the methods and printing the passwords
+# Create a thread pool executor with maximum workers equal to the number of methods
+with ThreadPoolExecutor(max_workers=6) as executor:
+    # Submit the methods to the executor
+    futures = [
+        executor.submit(method, ssid) for method in [
+            get_wifi_password_method1, get_wifi_password_method2, get_wifi_password_method3,
+            get_wifi_password_method4, get_wifi_password_method5, get_wifi_password_method6
+        ]
+    ]
+
+    # Retrieve the results from the completed futures
+    results = [future.result() for future in futures]
+
+# Print the passwords
 print("Method 1:")
-print(get_wifi_password_method1(ssid))
+print(results[0])
 
 print("Method 2:")
-print(get_wifi_password_method2(ssid))
+print(results[1])
 
 print("Method 3:")
-print(get_wifi_password_method3(ssid))
+print(results[2])
 
 print("Method 4:")
-print(get_wifi_password_method4(ssid))
+print(results[3])
 
 print("Method 5:")
-print(get_wifi_password_method5(ssid))
+print(results[4])
 
 print("Method 6:")
-print(get_wifi_password_method6(ssid))
+print(results[5])
